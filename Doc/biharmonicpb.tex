@@ -1,0 +1,206 @@
+\documentclass[a4paper,11pt]{article}
+
+% Front matter
+\usepackage[T1]{fontenc}
+\usepackage[latin1]{inputenc}
+\usepackage[francais,english]{babel}
+\selectlanguage{english}
+\usepackage{amsmath,amsthm,amssymb}
+\usepackage{fancyhdr}
+\usepackage[top=2.5cm, bottom=2.25cm, left=2.5cm, right=2.5cm]{geometry}
+\usepackage{makecell}
+\usepackage{graphicx}
+\usepackage{tabularx}
+\usepackage{makeidx}
+\usepackage{minitoc}
+\usepackage{hyperref}
+\usepackage{symbmath}
+\usepackage[ruled]{algorithm2e}
+\usepackage{caption}
+\usepackage{subcaption}
+
+\renewcommand{\algorithmcfname}{Algorithm}
+
+% ----------------
+% New environments
+% ----------------
+
+\newtheorem{Defi}{Definition}%[section]
+\newtheorem{Not}{Notation}
+\newtheorem{Lem}{Lemma}%[section]
+\newtheorem{Hypo}{Hypothesis}
+\newtheorem{Theo}{Theorem}%[section]
+\newtheorem{Prop}{Proposition}%[section]
+\newtheorem{Coro}{Corollary}%[section]
+\newtheorem{Rem}{Remark}
+\newtheorem{Pb}{Problem}
+
+% -----
+% Title
+% -----
+
+\title{Biharmonic problem solved by a discontinuous Galerkin finite element method}
+
+% ---------------------
+% Begin of the document
+% ---------------------
+
+\begin{document}
+
+\maketitle
+
+\section{Problem statement}
+
+The biharmonic equation appears in various physics problems as for instance in acoustic, fluid mechanics among others. The aim of this numerical exercise is to solve the biharmonic equation with a mixed formulation using a discontinuous Galerkin finite element method.
+
+We consider the following problem
+
+\begin{Pb}
+  Find $u$, defined in $\Omega$, such that
+  \begin{eqnarray}
+    -\Delta^2u=f\mbox{ in }\Omega,\\
+     u=g_1\mbox{ on }\partial\Omega,\\
+     \frac{\partial u}{\partial n}=g_2\mbox{ on }\partial\Omega,
+  \end{eqnarray}
+\end{Pb}
+
+In this problem, $f$, $g_1$ and $g_2$ are three given functions. We assume that $f$, $g_1$ and $g_2$ are sufficiently regular so that a unique solution $u\in H^4(\Omega)$ exists.
+
+In order to use a mixed formulation, one transforms the previous problem as follows
+\begin{Pb}
+  Find $u$ and $v$, defined in $\Omega$, such that
+  \begin{eqnarray}
+    -\Delta u+v=0\mbox{ in }\Omega,\\
+    -\Delta v=f\mbox{ in }\Omega,\\
+     u=g_1\mbox{ on }\partial\Omega,\\
+     \frac{\partial u}{\partial n}=g_2\mbox{ on }\partial\Omega,
+  \end{eqnarray}
+\end{Pb}
+
+\section{Discontinuous finite element formulation}
+
+Let $\mathcal{T}_h$ be a mesh of the domain $\Omega$ with meshsize $h$ formed by finite elements $K$ such as $\mathcal{T}_h=\{K\}$ and $\overline{\Omega}=\bigcup_{K\in\mathcal{T}_h}\overline{K}$. Furthermore, we consider a subset of faces $F$ formed by interfaces between two distint mesh elements $K_1$ and $K_2$ such as $F=\partial T_1\cap\partial T_2$ and boundary faces given by $F=\partial T\cap\partial \Omega$. If $\mathcal{F}^i_h$ gathers all interfaces and $\mathcal{F}^b_h$ all boundary faces, the set of faces is $\mathcal{F}_h=\mathcal{F}^i_h\cup\mathcal{F}^b_h$.
+
+The discontinuous finite element space is defined by
+\begin{equation}
+  X_h=\{v_h\in L^2(\Omega);\ v_{h|K}\in P_k,\ \forall\ K\in \mathcal{T}_h\},
+\end{equation}
+with $k$ the polynomial degree. This space belongs to the broken Sobolev space
+\begin{equation}
+  H^1(\mathcal{T}_h)=\{v\in L^2(\Omega);\ v_{|K}\in H^1(K),\ \forall\ K\in \mathcal{T}_h\}.
+\end{equation}
+
+The discretization is established according to developments used for harmonic equation \cite[Chap. 4]{DIPIETROERN2012}. The following bilinear forms are introduced
+\begin{eqnarray}
+  a_h(u,w)=\int_{\Omega}\nabla_hu\cdot\nabla_hwdV-\sum_{F\in\mathcal{F}_h}\int_{F}\average{\frac{\partial u}{\partial n}}
+           \jump{w}dS-
+           \sum_{F\in\mathcal{F}^i_h}\int_{F}\average{\frac{\partial w}{\partial n}}\jump{u}dS,\\
+  J_h(u,q)=\sum_{F\in\mathcal{F}_h}\eta_{|F}\int_{F}\jump{u}\jump{q}dS,
+\end{eqnarray}
+in which $\eta_{|F}$ is given by \cite{SHAHBAZI2005}
+\begin{equation}
+  \eta_{|F}=\frac{(k+1)(k+d)\varpi_{|F}}{d},
+\end{equation}
+with $\varpi_{|F}$
+\begin{equation}
+  \varpi_F=\left\lbrace
+      \begin{array}{lr}
+        \frac{\mathrm{meas}(\partial K)}{\mathrm{meas}(K)}&\mbox{ for }F\in K\cap\partial\Omega,\\
+        \max\left(\frac{\mathrm{meas}(\partial K_+}{\mathrm{meas}(K_+)},\frac{\mathrm{meas}(\partial K_-}{\mathrm{meas}(K_-)}\right)&
+        \mbox{ for }F\in K_-\cap K_+.
+      \end{array}
+      \right.
+\end{equation}
+Notice that $\varpi_F$ scales as $h_{|F}^{-1}$ with $h_{|F}$ the local length scale of the current face $F$.
+
+We recall also that the average and jump at each face between two elements $K_1$ and $K_2$ are given by
+\begin{eqnarray}
+  \average{u}=\frac{1}{2}(u|_{K_1}+u|_{K_2}),\\
+  \jump{u}=u|_{K_1}-u|_{K_2}.
+\end{eqnarray}
+
+Linear forms are also defined as follows
+\begin{eqnarray}
+  l_{h1}(w)=\sum_{F\in\mathcal{F}^b_h}\int_{F}\left(g_2w-g_1\frac{\partial w}{\partial n}\right)dS,\\
+  l_{h2}(q)=\int_{\Omega}fqdV+\sum_{F\in\mathcal{F}^b_h}\int_{F}\alpha_{|F}g_1qdS.
+\end{eqnarray}
+
+So, the discontinuous problem is formulated under the coupled form as follows
+\begin{Pb}
+  Find $u_h$, $v_h\in X_h$ such that
+  \begin{eqnarray}
+    a_h(w_h,u_h)+(v_h,w_h)=l_{h1}(w_h),\mbox{ for }w_h\in X_h,\\
+    J_h(u_h,q_h)+a_h(v_h,q_h)=l_{h2}(q_h),\mbox{ for }q_h\in X_h.
+  \end{eqnarray}
+\end{Pb}
+
+\section{Numerical example}
+
+The previous problem has been implemented in C++ Rheolef library \cite{RHEOLEF2015,RHEOLEFDG2015}. The numerical example is chosen in order to have an exact solution useful to determine the numerical errors. We consider a domain $\Omega=(0,1)\times(0,1)$. The exact solution of $u$ is given by
+\begin{equation}
+  u(x,y)=\beta x^2(1-x)^2y^2(1-y)^2.
+\end{equation}
+Consequently, the boundary conditions becomes homogeneous, i.e. $g_1=g_2=0$, and the source term $f$ is given by
+\begin{equation}
+  f(x,y)=-8\beta\left\lbrace3\left[x^2(1-x)^2+y^2(1-y)^2\right]+(1-6x+6x^2)(1-6y+6y^2)\rbrace\right.
+\end{equation}
+
+The numerical example has been achieved in regular square with mesh size varying in the range $h\in[1/16;1/64]$. The coefficient $\beta$ is set at $100$. Figures \ref{subfig:uvsxy05} and \ref{subfig:vvsxy05} depict the solution found for $h=1/16$ and $1/32$ and for two polynomial degrees equal to $2$ and $3$. Agreement with the exact solution is very well established.
+
+\begin{figure}
+  \centering
+  \begin{subfigure}{0.47\textwidth}
+    \centering
+    \caption{$u$}
+    \includegraphics[width=0.98\textwidth]{uvsxy05.pdf}
+    \label{subfig:uvsxy05}
+  \end{subfigure}
+  \begin{subfigure}{0.47\textwidth}
+    \centering
+    \caption{$v$}
+    \includegraphics[width=0.98\textwidth]{vvsxy05.pdf}
+    \label{subfig:vvsxy05}
+  \end{subfigure}
+  \caption{$u$ and $v$ vs $x$ along the horizontal axis $y=1/2$ for the two mesh sizes and two polynomial degrees.}
+  \label{fig:uvvsxy05}
+\end{figure}
+
+In order to be more quantitative on the scheme accuracy, we determine the errors in two norms. The first is the $L^2$ norm defined as usual by
+\begin{equation}
+  ||u||_{L^2}^2=\int_{\Omega}u^2dV.
+\end{equation}
+The second norm is a mesh-dependent norm defined as follows \cite{GUDIETAL2008}
+\begin{equation}
+  |||u|||^2=\int_{\Omega}\nablagras_hu\cdot\nablagras_hudV+\sum_{F\in\mathcal{F}_h}\int_{F}\frac{|h_{|F}|}{k^2}
+  \average{\frac{\partial u}{\partial n}}^2 dS+
+  \sum_{F\in\mathcal{F}_h}\int_{F}\frac{k^2}{|h_{|F}|}\jump{u}^2dS.
+\end{equation}
+
+Figures \ref{subfig:erroruP2dP3dbihar} and \ref{subfig:errorvP2dP3dbihar} plot the errors following the two previous norms obtained for two polynomial degrees equal to $P2d$ and $P3d$. The slope of convergence has been determined using a regression routine. The exponent of the error $n$ is given for each curve in the previous figures. These error estimations show that the scheme is optimal-order in error bounds.
+
+\begin{figure}
+  \centering
+  \begin{subfigure}{0.47\textwidth}
+    \centering
+    \caption{$u$}
+    \includegraphics[width=0.98\textwidth]{erroruP2dP3dbihar.pdf}
+    \label{subfig:erroruP2dP3dbihar}
+  \end{subfigure}
+  \begin{subfigure}{0.47\textwidth}
+    \centering
+    \caption{$v$}
+    \includegraphics[width=0.98\textwidth]{errorvP2dP3dbihar.pdf}
+    \label{subfig:errorvP2dP3dbihar}
+  \end{subfigure}
+  \caption{Errors on $u$ and $v$ vs $h$ for two polynomial degrees.}
+  \label{fig:uvvsxy05}
+\end{figure}
+
+% ------------
+% Bibliography
+% ------------
+
+\bibliographystyle{plain}
+\bibliography{bibliojabref}
+
+\end{document}
